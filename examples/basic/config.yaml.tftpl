@@ -1,0 +1,24 @@
+# dns-gate configuration rendered by Terraform (no secret here: secrets come
+# from the Secrets Manager secret, DNS_GATE_SECRETS_ARN).
+# Reference: https://github.com/KamorionLabs/dns-gate/blob/main/docs/CONFIG.md
+
+store:
+  type: dynamodb
+  dynamodb:
+    table: ${table}
+    region: ${region}
+
+providers:
+  - name: route53-network
+    route53:
+      region: ${region}
+      assume_role_arn: ${assume_role_arn}
+      external_id: ${external_id}
+      hosted_zones:
+%{ for z in hosted_zones ~}
+        - ${z}
+%{ endfor ~}
+      include_private: false
+
+# Add the authentication (SAML login with IAM Identity Center, issuers),
+# roles and bindings: see docs/CONFIG.md. Public URL: https://${domain_name}
