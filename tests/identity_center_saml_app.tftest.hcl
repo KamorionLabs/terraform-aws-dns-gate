@@ -52,7 +52,7 @@ run "saml_app" {
   }
 
   assert {
-    condition     = aws_ssoadmin_application.this.portal_options[0].sign_in_options[0].application_url == "https://dns-gate.example.com/"
+    condition     = aws_ssoadmin_application.this.portal_options[0].sign_in_options[0].application_url == "https://dns-gate.example.com/auth/login"
     error_message = "Unexpected start URL"
   }
 

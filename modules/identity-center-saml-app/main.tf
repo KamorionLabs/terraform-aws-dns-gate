@@ -14,7 +14,7 @@ locals {
   instance_arn      = tolist(data.aws_ssoadmin_instances.this.arns)[0]
   identity_store_id = tolist(data.aws_ssoadmin_instances.this.identity_store_ids)[0]
 
-  start_url     = "https://${var.gate_domain_name}/"
+  start_url     = "https://${var.gate_domain_name}/auth/login"
   acs_url       = "https://${var.gate_domain_name}/auth/saml/acs"
   saml_audience = coalesce(var.saml_audience, "https://${var.gate_domain_name}/auth/saml/metadata")
 }

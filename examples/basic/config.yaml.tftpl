@@ -9,14 +9,17 @@ store:
     region: ${region}
 
 providers:
-  - name: route53-network
+  - id: route53-network
+    kind: route53
+    zones:
+      include: ["*"]
     route53:
       region: ${region}
       assume_role_arn: ${assume_role_arn}
       external_id: ${external_id}
       hosted_zones:
-%{ for z in hosted_zones ~}
-        - ${z}
+%{ for name, id in hosted_zones ~}
+        "${name}": ${id}
 %{ endfor ~}
       include_private: false
 

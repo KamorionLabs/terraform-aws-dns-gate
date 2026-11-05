@@ -4,7 +4,11 @@ locals {
   external_id = "dns-gate-example-corp"
 
   # Zones the gate manages, in the network account
-  hosted_zone_ids = ["Z0123456789EXAMPLEAAA", "Z0123456789EXAMPLEBBB"]
+  hosted_zones = {
+    "example.com" = "Z0123456789EXAMPLEAAA"
+    "example.org" = "Z0123456789EXAMPLEBBB"
+  }
+  hosted_zone_ids = values(local.hosted_zones)
 
   # Zone holding the gate record (and the certificate validation record)
   gate_zone_id = "Z0123456789EXAMPLEAAA"
@@ -63,7 +67,7 @@ module "dns_gate" {
     domain_name     = local.domain_name
     assume_role_arn = module.route53_access.role_arn
     external_id     = local.external_id
-    hosted_zones    = local.hosted_zone_ids
+    hosted_zones    = local.hosted_zones
   })
 
   route53_role_arns = [module.route53_access.role_arn]
