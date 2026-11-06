@@ -27,6 +27,11 @@ output "lambda_log_group_name" {
   value       = aws_cloudwatch_log_group.lambda.name
 }
 
+output "audit_export_role_arn" {
+  description = "Role CloudWatch Logs assumes to deliver the audit events (created or given), null without audit_export or for a Lambda or Logs destination"
+  value       = local.audit_export ? local.audit_export_role_arn : null
+}
+
 # -----------------------------------------------------------------------------
 # Store, configuration, secrets
 # -----------------------------------------------------------------------------

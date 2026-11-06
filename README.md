@@ -154,6 +154,37 @@ These denies hold even if the gate policy is wrong or the gate is compromised. T
 
 Identity Center sends no group in the assertion. With `create_identity_store_role = true` the module also creates a read-only identity store role for the gate (`identity_store_role_arn` of the root module).
 
+### Audit export
+
+The gate writes one JSON line per audit event (`"type": "audit"`) to its log group,
+next to the application logs (see [AUDIT.md](https://github.com/KamorionLabs/dns-gate/blob/main/docs/AUDIT.md)
+for the schema, the ECS/OCSF formats and the hash chain). `audit_export` adds a
+subscription filter on the function log group, `{ $.type = "audit" }` by default,
+towards a SIEM or an archive:
+
+```hcl
+module "dns_gate" {
+  # ...
+  audit_export = {
+    destination_arn = aws_kinesis_firehose_delivery_stream.audit.arn
+  }
+}
+```
+
+| Destination (`destination_arn`) | What the module adds |
+|---|---|
+| Kinesis Data Firehose delivery stream (to S3, Splunk, Datadog, OpenSearch, an HTTP endpoint) | IAM role assumed by CloudWatch Logs with `firehose:PutRecord(Batch)` on the stream, unless `role_arn` is given |
+| Kinesis data stream | IAM role with `kinesis:PutRecord(s)` on the stream, unless `role_arn` is given; `distribution` (`ByLogStream` or `Random`) |
+| Lambda function | `lambda:InvokeFunction` permission for CloudWatch Logs, limited to the log group |
+| CloudWatch Logs destination (central logging account) | Nothing: the destination policy must allow this account |
+
+The role trusts `logs.amazonaws.com` for this account and region only (`aws:SourceArn`).
+`filter_pattern` narrows the export (for example `{ $.type = "audit" && $.decision != "allow" }`)
+and `filter_name` names the filter (default `<name>-audit`). A log group accepts two
+subscription filters. With Firehose to S3, enable the CloudWatch Logs decompression and
+message extraction processors of the delivery stream, so that objects hold the original
+JSON lines (readable by Athena and `dns-gate audit verify`), and Object Lock on the bucket.
+
 ## Upgrade
 
 The release assets are `dns-gate_<version>_lambda_arm64.zip` (no `v`: tag `v0.6.0` gives `dns-gate_0.6.0_lambda_arm64.zip`) and a `.sha256` file in `sha256sum` format.
@@ -217,18 +248,22 @@ Expect 1 to 3 USD per month without customer managed keys.
 | [aws_apigatewayv2_stage.default](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_stage) | resource |
 | [aws_cloudwatch_log_group.api](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group) | resource |
 | [aws_cloudwatch_log_group.lambda](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group) | resource |
+| [aws_cloudwatch_log_subscription_filter.audit_export](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_subscription_filter) | resource |
 | [aws_cloudwatch_metric_alarm.api_5xx](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_metric_alarm) | resource |
 | [aws_cloudwatch_metric_alarm.lambda_errors](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_metric_alarm) | resource |
 | [aws_cloudwatch_metric_alarm.lambda_throttles](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_metric_alarm) | resource |
 | [aws_dynamodb_table.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
+| [aws_iam_role.audit_export](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role.lambda](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role.scheduler](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role_policy.audit_export](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_iam_role_policy.lambda](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_iam_role_policy.lambda_additional](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_iam_role_policy.scheduler](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
 | [aws_lambda_function.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_function) | resource |
 | [aws_lambda_function_event_invoke_config.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_function_event_invoke_config) | resource |
 | [aws_lambda_permission.api](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
+| [aws_lambda_permission.audit_export](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
 | [aws_route53_record.certificate_validation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record) | resource |
 | [aws_s3_object.config](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_object) | resource |
 | [aws_scheduler_schedule.maintenance](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/scheduler_schedule) | resource |
@@ -236,6 +271,8 @@ Expect 1 to 3 USD per month without customer managed keys.
 | [aws_secretsmanager_secret_version.placeholder](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/secretsmanager_secret_version) | resource |
 | [aws_ssm_parameter.config](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssm_parameter) | resource |
 | [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
+| [aws_iam_policy_document.audit_export](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_iam_policy_document.audit_export_assume](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.lambda](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.lambda_assume](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.scheduler_assume](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
@@ -251,6 +288,7 @@ Expect 1 to 3 USD per month without customer managed keys.
 | alarm\_sns\_topic\_arn | SNS topic receiving the alarms (Lambda errors and throttles, API 5xx). Null creates no alarm. | `string` | `null` | no |
 | api\_throttling\_burst\_limit | Default route burst limit of the HTTP API stage. | `number` | `100` | no |
 | api\_throttling\_rate\_limit | Default route steady-state rate limit (requests per second) of the HTTP API stage. | `number` | `50` | no |
+| audit\_export | Forward the audit events of the function log group to a SIEM or an archive: a subscription filter (default pattern { $.type = "audit" }) towards destination\_arn, a Kinesis Data Firehose delivery stream, a Kinesis data stream, a Lambda function or a CloudWatch Logs destination (cross-account). For Firehose and Kinesis the module creates the role CloudWatch Logs assumes unless role\_arn is given; for a Lambda function it adds the invoke permission. distribution (ByLogStream or Random) applies to Kinesis data streams only. Null exports nothing. | <pre>object({<br/>    destination_arn = string<br/>    role_arn        = optional(string)<br/>    filter_name     = optional(string)<br/>    filter_pattern  = optional(string, "{ $.type = \"audit\" }")<br/>    distribution    = optional(string, "ByLogStream")<br/>  })</pre> | `null` | no |
 | certificate\_arn | ACM certificate (same region) for domain\_name. Exclusive with create\_certificate. | `string` | `null` | no |
 | certificate\_validation\_zone\_id | Route53 zone (in the account of the default provider) receiving the ACM validation record. Null when the zone lives in another account: create the record from output certificate\_validation\_record, the module waits for the certificate. | `string` | `null` | no |
 | config\_s3\_bucket | Existing S3 bucket receiving the configuration object when config\_storage = 's3'. | `string` | `null` | no |
@@ -299,6 +337,7 @@ Expect 1 to 3 USD per month without customer managed keys.
 |------|-------------|
 | api\_endpoint | Default execute-api endpoint (disabled when a custom domain is set, unless disable\_execute\_api\_endpoint = false) |
 | api\_id | ID of the HTTP API |
+| audit\_export\_role\_arn | Role CloudWatch Logs assumes to deliver the audit events (created or given), null without audit\_export or for a Lambda or Logs destination |
 | certificate\_arn | ACM certificate of the custom domain |
 | certificate\_validation\_record | DNS record validating the created certificate ({name, type, value}), to create when the zone is in another account |
 | config\_ssm\_parameter\_name | SSM parameter holding the configuration (null unless config\_storage = ssm) |
