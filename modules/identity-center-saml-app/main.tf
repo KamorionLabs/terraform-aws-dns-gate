@@ -26,7 +26,7 @@ locals {
 resource "aws_ssoadmin_application" "this" {
   name                     = var.application_name
   description              = var.application_description
-  application_provider_arn = "arn:aws:sso::aws:applicationProvider/custom"
+  application_provider_arn = "arn:aws:sso::aws:applicationProvider/custom-saml"
   instance_arn             = local.instance_arn
 
   portal_options {

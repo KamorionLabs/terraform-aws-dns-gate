@@ -57,6 +57,11 @@ run "saml_app" {
   }
 
   assert {
+    condition     = aws_ssoadmin_application.this.application_provider_arn == "arn:aws:sso::aws:applicationProvider/custom-saml"
+    error_message = "The application must be a custom SAML 2.0 application (custom is OAuth)"
+  }
+
+  assert {
     condition     = length(aws_ssoadmin_application_assignment.groups) == 2
     error_message = "Groups must be assigned"
   }
