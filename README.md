@@ -178,7 +178,7 @@ module "dns_gate" {
 | Lambda function | `lambda:InvokeFunction` permission for CloudWatch Logs, limited to the log group |
 | CloudWatch Logs destination (central logging account) | Nothing: the destination policy must allow this account |
 
-The role trusts `logs.amazonaws.com` for the function log group only (`aws:SourceArn`), and
+The role trusts `logs.amazonaws.com` for the function log group only (`aws:SourceArn`: the log group ARN, with and without `:*`), and
 `kms_key_arn` adds `kms:GenerateDataKey` on the customer managed key of an encrypted stream.
 The destination must be in the region of the function, and in its account unless it is a
 CloudWatch Logs destination (the way to deliver to another account).

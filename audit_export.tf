@@ -28,7 +28,7 @@ data "aws_iam_policy_document" "audit_export_assume" {
     condition {
       test     = "StringLike"
       variable = "aws:SourceArn"
-      values   = ["${aws_cloudwatch_log_group.lambda.arn}:*"]
+      values   = [aws_cloudwatch_log_group.lambda.arn, "${aws_cloudwatch_log_group.lambda.arn}:*"]
     }
   }
 }

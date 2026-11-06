@@ -159,7 +159,7 @@ run "firehose_policy" {
   }
 
   assert {
-    condition     = anytrue([for c in data.aws_iam_policy_document.audit_export_assume[0].statement[0].condition : c.test == "StringLike" && c.variable == "aws:SourceArn" && length(c.values) == 1 && contains(c.values, "arn:aws:logs:eu-west-3:111111111111:log-group:dns-gate:*")])
+    condition     = anytrue([for c in data.aws_iam_policy_document.audit_export_assume[0].statement[0].condition : c.test == "StringLike" && c.variable == "aws:SourceArn" && toset(c.values) == toset(["arn:aws:logs:eu-west-3:111111111111:log-group:dns-gate", "arn:aws:logs:eu-west-3:111111111111:log-group:dns-gate:*"])])
     error_message = "The trust must be limited to CloudWatch Logs delivering the function log group"
   }
 }
