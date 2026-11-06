@@ -116,18 +116,23 @@ Use SSM until the configuration outgrows 8 KB (large inline policies, many virtu
 
 ### Secrets
 
-The module creates the secret with a placeholder (`REPLACE_ME` for each key of `secret_placeholder_keys`) and ignores later changes of its value: the real values never enter the Terraform state. Set them once after the first apply:
+The module creates the secret with a placeholder (`REPLACE_ME` for each key of `secret_placeholder_keys`) and ignores later changes of its value: the real values never enter the Terraform state. Set them once after the first apply. The token signing key is an EC P-256 (or Ed25519) PEM key, not a random string; the SAML keys are only needed with the SAML login:
 
 ```bash
-# values generated locally, never echoed
+# values generated locally in a private temporary directory, never echoed
+umask 077 && cd "$(mktemp -d)"
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out signing.pem
+openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -subj "/CN=dns-gate.example.com" \
+  -keyout sp-key.pem -out sp-cert.pem
 jq -n \
   --arg session "$(openssl rand -hex 32)" \
-  --arg signing "$(openssl rand -hex 32)" \
+  --rawfile signing signing.pem \
   --rawfile spkey sp-key.pem \
-  '{DNS_GATE_SESSION_KEY: $session, DNS_GATE_TOKEN_SIGNING_KEY: $signing, DNS_GATE_SAML_SP_KEY: $spkey}' \
+  --rawfile spcert sp-cert.pem \
+  '{DNS_GATE_SESSION_KEY: $session, DNS_GATE_TOKEN_SIGNING_KEY: $signing, DNS_GATE_SAML_SP_KEY: $spkey, DNS_GATE_SAML_SP_CERT: $spcert}' \
   > secrets.json
 aws secretsmanager put-secret-value --secret-id dns-gate --secret-string file://secrets.json --region eu-west-3
-rm secrets.json
+rm -f secrets.json signing.pem sp-key.pem sp-cert.pem
 ```
 
 New values are read by new execution environments only: force them with a configuration change or `aws lambda update-function-configuration` (any environment change). Do not set the secret keys in `lambda_environment_variables`: an environment variable wins over the secret.
