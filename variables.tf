@@ -322,6 +322,31 @@ variable "alarm_api_5xx_threshold" {
   default     = 5
 }
 
+variable "audit_export" {
+  description = <<-EOT
+    Forward the audit events of the function log group to a SIEM or an archive: a subscription filter (default pattern { $.type = "audit" }) towards destination_arn, a Kinesis Data Firehose delivery stream, a Kinesis data stream, a Lambda function or a CloudWatch Logs destination (cross-account). For Firehose and Kinesis the module creates the role CloudWatch Logs assumes unless role_arn is given; for a Lambda function it adds the invoke permission. distribution (ByLogStream or Random) applies to Kinesis data streams only. kms_key_arn grants kms:GenerateDataKey on the customer managed key of an encrypted Kinesis stream or Firehose (created role only). The destination must be in the region of the function, and in its account unless it is a CloudWatch Logs destination. Null exports nothing.
+  EOT
+  type = object({
+    destination_arn = string
+    role_arn        = optional(string)
+    filter_name     = optional(string)
+    filter_pattern  = optional(string, "{ $.type = \"audit\" }")
+    distribution    = optional(string, "ByLogStream")
+    kms_key_arn     = optional(string)
+  })
+  default = null
+
+  validation {
+    condition     = var.audit_export == null ? true : can(regex("^arn:[^:]+:(firehose|kinesis|lambda|logs):[^:]*:[0-9]{12}:", var.audit_export.destination_arn))
+    error_message = "audit_export.destination_arn must be the ARN of a Firehose delivery stream, a Kinesis data stream, a Lambda function or a CloudWatch Logs destination."
+  }
+
+  validation {
+    condition     = var.audit_export == null ? true : contains(["ByLogStream", "Random"], var.audit_export.distribution)
+    error_message = "audit_export.distribution must be ByLogStream or Random."
+  }
+}
+
 variable "tags" {
   description = "Tags applied to every resource."
   type        = map(string)
