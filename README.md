@@ -178,7 +178,10 @@ module "dns_gate" {
 | Lambda function | `lambda:InvokeFunction` permission for CloudWatch Logs, limited to the log group |
 | CloudWatch Logs destination (central logging account) | Nothing: the destination policy must allow this account |
 
-The role trusts `logs.amazonaws.com` for this account and region only (`aws:SourceArn`).
+The role trusts `logs.amazonaws.com` for the function log group only (`aws:SourceArn`), and
+`kms_key_arn` adds `kms:GenerateDataKey` on the customer managed key of an encrypted stream.
+The destination must be in the region of the function, and in its account unless it is a
+CloudWatch Logs destination (the way to deliver to another account).
 `filter_pattern` narrows the export (for example `{ $.type = "audit" && $.decision != "allow" }`)
 and `filter_name` names the filter (default `<name>-audit`). A log group accepts two
 subscription filters. With Firehose to S3, enable the CloudWatch Logs decompression and
@@ -288,7 +291,7 @@ Expect 1 to 3 USD per month without customer managed keys.
 | alarm\_sns\_topic\_arn | SNS topic receiving the alarms (Lambda errors and throttles, API 5xx). Null creates no alarm. | `string` | `null` | no |
 | api\_throttling\_burst\_limit | Default route burst limit of the HTTP API stage. | `number` | `100` | no |
 | api\_throttling\_rate\_limit | Default route steady-state rate limit (requests per second) of the HTTP API stage. | `number` | `50` | no |
-| audit\_export | Forward the audit events of the function log group to a SIEM or an archive: a subscription filter (default pattern { $.type = "audit" }) towards destination\_arn, a Kinesis Data Firehose delivery stream, a Kinesis data stream, a Lambda function or a CloudWatch Logs destination (cross-account). For Firehose and Kinesis the module creates the role CloudWatch Logs assumes unless role\_arn is given; for a Lambda function it adds the invoke permission. distribution (ByLogStream or Random) applies to Kinesis data streams only. Null exports nothing. | <pre>object({<br/>    destination_arn = string<br/>    role_arn        = optional(string)<br/>    filter_name     = optional(string)<br/>    filter_pattern  = optional(string, "{ $.type = \"audit\" }")<br/>    distribution    = optional(string, "ByLogStream")<br/>  })</pre> | `null` | no |
+| audit\_export | Forward the audit events of the function log group to a SIEM or an archive: a subscription filter (default pattern { $.type = "audit" }) towards destination\_arn, a Kinesis Data Firehose delivery stream, a Kinesis data stream, a Lambda function or a CloudWatch Logs destination (cross-account). For Firehose and Kinesis the module creates the role CloudWatch Logs assumes unless role\_arn is given; for a Lambda function it adds the invoke permission. distribution (ByLogStream or Random) applies to Kinesis data streams only. kms\_key\_arn grants kms:GenerateDataKey on the customer managed key of an encrypted Kinesis stream or Firehose (created role only). The destination must be in the region of the function, and in its account unless it is a CloudWatch Logs destination. Null exports nothing. | <pre>object({<br/>    destination_arn = string<br/>    role_arn        = optional(string)<br/>    filter_name     = optional(string)<br/>    filter_pattern  = optional(string, "{ $.type = \"audit\" }")<br/>    distribution    = optional(string, "ByLogStream")<br/>    kms_key_arn     = optional(string)<br/>  })</pre> | `null` | no |
 | certificate\_arn | ACM certificate (same region) for domain\_name. Exclusive with create\_certificate. | `string` | `null` | no |
 | certificate\_validation\_zone\_id | Route53 zone (in the account of the default provider) receiving the ACM validation record. Null when the zone lives in another account: create the record from output certificate\_validation\_record, the module waits for the certificate. | `string` | `null` | no |
 | config\_s3\_bucket | Existing S3 bucket receiving the configuration object when config\_storage = 's3'. | `string` | `null` | no |

@@ -140,7 +140,7 @@ run "firehose" {
 }
 
 run "firehose_policy" {
-  command = plan
+  command = apply
 
   variables {
     audit_export = {
@@ -159,8 +159,8 @@ run "firehose_policy" {
   }
 
   assert {
-    condition     = anytrue([for c in data.aws_iam_policy_document.audit_export_assume[0].statement[0].condition : c.test == "StringLike" && c.variable == "aws:SourceArn" && contains(c.values, "arn:aws:logs:eu-west-3:111111111111:*")])
-    error_message = "The trust must be limited to CloudWatch Logs of this account and region"
+    condition     = anytrue([for c in data.aws_iam_policy_document.audit_export_assume[0].statement[0].condition : c.test == "StringLike" && c.variable == "aws:SourceArn" && length(c.values) == 1 && contains(c.values, "arn:aws:logs:eu-west-3:111111111111:log-group:dns-gate:*")])
+    error_message = "The trust must be limited to CloudWatch Logs delivering the function log group"
   }
 }
 
@@ -271,4 +271,71 @@ run "invalid_distribution" {
   }
 
   expect_failures = [var.audit_export]
+}
+
+run "kms_encrypted_destination" {
+  command = plan
+
+  variables {
+    audit_export = {
+      destination_arn = "arn:aws:kinesis:eu-west-3:111111111111:stream/audit"
+      kms_key_arn     = "arn:aws:kms:eu-west-3:111111111111:key/00000000-0000-0000-0000-000000000000"
+    }
+  }
+
+  assert {
+    condition     = anytrue([for st in data.aws_iam_policy_document.audit_export[0].statement : st.sid == "EncryptedDestination" && st.actions == toset(["kms:GenerateDataKey"]) && st.resources == toset(["arn:aws:kms:eu-west-3:111111111111:key/00000000-0000-0000-0000-000000000000"])])
+    error_message = "The role must be allowed to generate data keys of the destination key"
+  }
+}
+
+run "no_kms_statement_by_default" {
+  command = plan
+
+  variables {
+    audit_export = {
+      destination_arn = "arn:aws:firehose:eu-west-3:111111111111:deliverystream/dns-gate-audit"
+    }
+  }
+
+  assert {
+    condition     = length(data.aws_iam_policy_document.audit_export[0].statement) == 1
+    error_message = "No KMS permission without kms_key_arn"
+  }
+}
+
+run "destination_in_another_region" {
+  command = plan
+
+  variables {
+    audit_export = {
+      destination_arn = "arn:aws:firehose:us-east-1:111111111111:deliverystream/dns-gate-audit"
+    }
+  }
+
+  expect_failures = [aws_cloudwatch_log_subscription_filter.audit_export]
+}
+
+run "destination_in_another_account" {
+  command = plan
+
+  variables {
+    audit_export = {
+      destination_arn = "arn:aws:lambda:eu-west-3:222222222222:function:siem-forwarder"
+    }
+  }
+
+  expect_failures = [aws_cloudwatch_log_subscription_filter.audit_export]
+}
+
+run "logs_destination_in_another_region" {
+  command = plan
+
+  variables {
+    audit_export = {
+      destination_arn = "arn:aws:logs:eu-west-1:222222222222:destination:central-audit"
+    }
+  }
+
+  expect_failures = [aws_cloudwatch_log_subscription_filter.audit_export]
 }

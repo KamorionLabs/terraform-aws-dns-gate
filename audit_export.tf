@@ -9,6 +9,9 @@ locals {
   audit_export_service  = local.audit_export ? split(":", var.audit_export.destination_arn)[2] : ""
   audit_export_new_role = local.audit_export ? contains(["firehose", "kinesis"], local.audit_export_service) && var.audit_export.role_arn == null : false
   audit_export_role_arn = local.audit_export_new_role ? aws_iam_role.audit_export[0].arn : local.audit_export ? var.audit_export.role_arn : null
+  audit_export_arn      = local.audit_export ? split(":", var.audit_export.destination_arn) : []
+  audit_export_region   = local.audit_export ? local.audit_export_arn[3] : ""
+  audit_export_account  = local.audit_export ? local.audit_export_arn[4] : ""
 }
 
 data "aws_iam_policy_document" "audit_export_assume" {
@@ -25,7 +28,7 @@ data "aws_iam_policy_document" "audit_export_assume" {
     condition {
       test     = "StringLike"
       variable = "aws:SourceArn"
-      values   = ["arn:${local.partition}:logs:${local.region}:${local.account_id}:*"]
+      values   = ["${aws_cloudwatch_log_group.lambda.arn}:*"]
     }
   }
 }
@@ -48,6 +51,15 @@ data "aws_iam_policy_document" "audit_export" {
     sid       = "Deliver"
     actions   = local.audit_export_service == "firehose" ? ["firehose:PutRecord", "firehose:PutRecordBatch"] : ["kinesis:PutRecord", "kinesis:PutRecords"]
     resources = [var.audit_export.destination_arn]
+  }
+
+  dynamic "statement" {
+    for_each = var.audit_export.kms_key_arn != null ? [var.audit_export.kms_key_arn] : []
+    content {
+      sid       = "EncryptedDestination"
+      actions   = ["kms:GenerateDataKey"]
+      resources = [statement.value]
+    }
   }
 }
 
@@ -81,4 +93,15 @@ resource "aws_cloudwatch_log_subscription_filter" "audit_export" {
   distribution    = local.audit_export_service == "kinesis" ? var.audit_export.distribution : null
 
   depends_on = [aws_iam_role_policy.audit_export, aws_lambda_permission.audit_export]
+
+  lifecycle {
+    precondition {
+      condition     = local.audit_export_region == local.region
+      error_message = "audit_export.destination_arn must be in the region of the function (${local.region}): subscription filters do not deliver across regions."
+    }
+    precondition {
+      condition     = local.audit_export_service == "logs" || local.audit_export_account == local.account_id
+      error_message = "audit_export.destination_arn must be in the account of the function (${local.account_id}); use a CloudWatch Logs destination for another account."
+    }
+  }
 }
