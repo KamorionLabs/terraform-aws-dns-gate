@@ -58,11 +58,6 @@ run "saml_app" {
   }
 
   assert {
-    condition     = length(aws_ssoadmin_application_assignment_configuration.this) == 1 && aws_ssoadmin_application_assignment_configuration.this[0].assignment_required
-    error_message = "Assignment must be required on the application"
-  }
-
-  assert {
     condition     = length(aws_ssoadmin_application_assignment.groups) == 2
     error_message = "Groups must be assigned"
   }
@@ -106,7 +101,7 @@ run "no_application_yet" {
   }
 
   assert {
-    condition     = length(aws_ssoadmin_application_assignment.groups) == 0 && length(aws_ssoadmin_application_assignment_configuration.this) == 0
+    condition     = length(aws_ssoadmin_application_assignment.groups) == 0
     error_message = "No assignment before the application exists"
   }
 

@@ -26,13 +26,6 @@ locals {
 # the custom SAML 2.0 provider), managed here once its ARN is known
 # -----------------------------------------------------------------------------
 
-resource "aws_ssoadmin_application_assignment_configuration" "this" {
-  count = local.app ? 1 : 0
-
-  application_arn     = var.application_arn
-  assignment_required = true
-}
-
 # -----------------------------------------------------------------------------
 # Application Assignment (Users/Groups)
 # -----------------------------------------------------------------------------

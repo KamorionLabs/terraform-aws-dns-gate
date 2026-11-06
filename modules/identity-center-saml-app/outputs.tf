@@ -64,8 +64,8 @@ output "saml_configuration_instructions" {
        Identity Center does not send groups in the assertion: the gate
        resolves them through the identity store (identity_store_role_arn).
     5. Set application_arn to the ARN of the application and apply:
-       Terraform requires assignment and assigns the users and groups
-       (assigned_* variables); users not assigned cannot sign in.
+       Terraform assigns the users and groups (assigned_* variables);
+       users not assigned cannot sign in.
 
     ============================================================
   EOT
