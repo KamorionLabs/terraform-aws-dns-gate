@@ -145,7 +145,7 @@ These denies hold even if the gate policy is wrong or the gate is compromised. T
 
 ### Identity Center SAML application
 
-`modules/identity-center-saml-app` creates the custom SAML application and its assignments in the account managing IAM Identity Center. The Identity Center API cannot set the SAML metadata nor the attribute mappings of a custom application; output `saml_configuration_instructions` lists the console steps:
+`modules/identity-center-saml-app` manages the assignments of the dns-gate SAML application in the account managing IAM Identity Center. The Identity Center API cannot create a custom SAML 2.0 application (`CreateApplication` refuses the `custom-saml` provider) nor set its metadata and attribute mappings: create it in the console following output `saml_configuration_instructions`, then set `application_arn` and apply (assignment required, users and groups assigned). Until then the module manages no assignment. Console values:
 
 - ACS URL: `https://<domain>/auth/saml/acs`
 - SAML audience: `https://<domain>/auth/saml/metadata` by default (`saml_audience`), the same value as the gate's SP entity id

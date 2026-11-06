@@ -12,15 +12,9 @@ variable "gate_domain_name" {
 # -----------------------------------------------------------------------------
 
 variable "application_name" {
-  description = "Display name of the Identity Center application."
+  description = "Display name to give the Identity Center application in the console."
   type        = string
   default     = "dns-gate"
-}
-
-variable "application_description" {
-  description = "Description of the Identity Center application."
-  type        = string
-  default     = "dns-gate: security gateway in front of DNS provider APIs"
 }
 
 variable "saml_audience" {
@@ -29,14 +23,14 @@ variable "saml_audience" {
   default     = null
 }
 
-variable "portal_visibility" {
-  description = "Whether the application tile is shown in the access portal. Valid values: ENABLED, DISABLED."
+variable "application_arn" {
+  description = "ARN of the custom SAML 2.0 application created in the Identity Center console (see saml_configuration_instructions). Null until it exists: no assignment is managed."
   type        = string
-  default     = "ENABLED"
+  default     = null
 
   validation {
-    condition     = contains(["ENABLED", "DISABLED"], var.portal_visibility)
-    error_message = "portal_visibility must be ENABLED or DISABLED."
+    condition     = var.application_arn == null || can(regex("^arn:aws:sso::[0-9]{12}:application/ssoins-[0-9a-f]+/apl-[0-9a-f]+$", var.application_arn))
+    error_message = "application_arn must be an Identity Center application ARN (arn:aws:sso::<account>:application/ssoins-.../apl-...)."
   }
 }
 

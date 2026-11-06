@@ -1,6 +1,6 @@
 # identity-center-saml-app
 
-IAM Identity Center custom SAML application for the dns-gate login, its assignments, and an optional read-only identity store role for the gate. Deploy in the account managing Identity Center (management or delegated administrator). The SAML settings must be completed in the console: see output saml_configuration_instructions and the root README.
+Assignments of the IAM Identity Center custom SAML 2.0 application of the dns-gate login, and an optional read-only identity store role for the gate. Deploy in the account managing Identity Center (management or delegated administrator). The application itself is created in the console (the API cannot create a custom SAML 2.0 application): follow output saml_configuration_instructions, then set application_arn. See the root README.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
@@ -22,7 +22,6 @@ IAM Identity Center custom SAML application for the dns-gate login, its assignme
 |------|------|
 | [aws_iam_role.identity_store](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
 | [aws_iam_role_policy.identity_store](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
-| [aws_ssoadmin_application.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_application) | resource |
 | [aws_ssoadmin_application_assignment.groups](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_application_assignment) | resource |
 | [aws_ssoadmin_application_assignment.groups_by_name](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_application_assignment) | resource |
 | [aws_ssoadmin_application_assignment.users](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ssoadmin_application_assignment) | resource |
@@ -41,8 +40,8 @@ IAM Identity Center custom SAML application for the dns-gate login, its assignme
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | gate\_domain\_name | Public domain of the gate (e.g. 'dns-gate.example.com'): start URL, ACS URL and default audience derive from it. | `string` | n/a | yes |
-| application\_description | Description of the Identity Center application. | `string` | `"dns-gate: security gateway in front of DNS provider APIs"` | no |
-| application\_name | Display name of the Identity Center application. | `string` | `"dns-gate"` | no |
+| application\_arn | ARN of the custom SAML 2.0 application created in the Identity Center console (see saml\_configuration\_instructions). Null until it exists: no assignment is managed. | `string` | `null` | no |
+| application\_name | Display name to give the Identity Center application in the console. | `string` | `"dns-gate"` | no |
 | assigned\_group\_names | Group display names assigned to the application (looked up in the identity store). | `list(string)` | `[]` | no |
 | assigned\_groups | Identity store group ids assigned to the application. | `list(string)` | `[]` | no |
 | assigned\_user\_names | User names assigned to the application (looked up in the identity store). | `list(string)` | `[]` | no |
@@ -52,7 +51,6 @@ IAM Identity Center custom SAML application for the dns-gate login, its assignme
 | identity\_store\_role\_external\_id | External id required to assume the identity store reader role (optional). | `string` | `null` | no |
 | identity\_store\_role\_name | Name of the identity store reader role. | `string` | `"dns-gate-identity-store-reader"` | no |
 | permissions\_boundary\_arn | Permissions boundary of the identity store reader role (optional). | `string` | `null` | no |
-| portal\_visibility | Whether the application tile is shown in the access portal. Valid values: ENABLED, DISABLED. | `string` | `"ENABLED"` | no |
 | saml\_audience | SAML audience (SP entity id) of the gate. Must equal the entity id configured in the gate. Null: https://<gate\_domain\_name>/auth/saml/metadata. | `string` | `null` | no |
 | tags | Tags applied to the application and the role. | `map(string)` | `{}` | no |
 
@@ -60,7 +58,7 @@ IAM Identity Center custom SAML application for the dns-gate login, its assignme
 
 | Name | Description |
 |------|-------------|
-| application\_arn | ARN of the Identity Center application |
+| application\_arn | ARN of the Identity Center application (application\_arn) |
 | identity\_store\_id | ID of the identity store |
 | identity\_store\_role\_arn | Role the gate assumes to read the identity store (identity\_store\_role\_arn of the root module), null when not created |
 | instance\_arn | ARN of the Identity Center instance |

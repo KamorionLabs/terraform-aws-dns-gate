@@ -36,6 +36,7 @@ run "saml_app" {
 
   variables {
     gate_domain_name           = "dns-gate.example.com"
+    application_arn            = "arn:aws:sso::333333333333:application/ssoins-0123456789abcdef/apl-0123456789abcdef"
     assigned_groups            = ["group-1", "group-2"]
     create_identity_store_role = true
     gate_role_arns             = ["arn:aws:iam::111111111111:role/dns-gate-lambda"]
@@ -52,13 +53,13 @@ run "saml_app" {
   }
 
   assert {
-    condition     = aws_ssoadmin_application.this.portal_options[0].sign_in_options[0].application_url == "https://dns-gate.example.com/auth/login"
-    error_message = "Unexpected start URL"
+    condition     = strcontains(output.saml_configuration_instructions, "https://dns-gate.example.com/auth/login") && strcontains(output.saml_configuration_instructions, "SAML 2.0")
+    error_message = "Instructions must create a SAML 2.0 application with the start URL"
   }
 
   assert {
-    condition     = aws_ssoadmin_application.this.application_provider_arn == "arn:aws:sso::aws:applicationProvider/custom-saml"
-    error_message = "The application must be a custom SAML 2.0 application (custom is OAuth)"
+    condition     = length(aws_ssoadmin_application_assignment_configuration.this) == 1 && aws_ssoadmin_application_assignment_configuration.this[0].assignment_required
+    error_message = "Assignment must be required on the application"
   }
 
   assert {
@@ -90,4 +91,27 @@ run "identity_store_role_needs_gate_roles" {
   }
 
   expect_failures = [aws_iam_role.identity_store]
+}
+
+run "no_application_yet" {
+  command = plan
+
+  module {
+    source = "./modules/identity-center-saml-app"
+  }
+
+  variables {
+    gate_domain_name = "dns-gate.example.com"
+    assigned_groups  = ["group-1"]
+  }
+
+  assert {
+    condition     = length(aws_ssoadmin_application_assignment.groups) == 0 && length(aws_ssoadmin_application_assignment_configuration.this) == 0
+    error_message = "No assignment before the application exists"
+  }
+
+  assert {
+    condition     = output.application_arn == null
+    error_message = "application_arn output must be null"
+  }
 }

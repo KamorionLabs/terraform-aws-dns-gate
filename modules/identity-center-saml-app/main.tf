@@ -14,34 +14,22 @@ locals {
   instance_arn      = tolist(data.aws_ssoadmin_instances.this.arns)[0]
   identity_store_id = tolist(data.aws_ssoadmin_instances.this.identity_store_ids)[0]
 
-  start_url     = "https://${var.gate_domain_name}/auth/login"
-  acs_url       = "https://${var.gate_domain_name}/auth/saml/acs"
+  start_url = "https://${var.gate_domain_name}/auth/login"
+  acs_url   = "https://${var.gate_domain_name}/auth/saml/acs"
+  app       = var.application_arn != null
+
   saml_audience = coalesce(var.saml_audience, "https://${var.gate_domain_name}/auth/saml/metadata")
 }
 
 # -----------------------------------------------------------------------------
-# SAML Application
+# SAML Application: created in the console (CreateApplication does not accept
+# the custom SAML 2.0 provider), managed here once its ARN is known
 # -----------------------------------------------------------------------------
 
-resource "aws_ssoadmin_application" "this" {
-  name                     = var.application_name
-  description              = var.application_description
-  application_provider_arn = "arn:aws:sso::aws:applicationProvider/custom-saml"
-  instance_arn             = local.instance_arn
-
-  portal_options {
-    visibility = var.portal_visibility
-    sign_in_options {
-      origin          = "APPLICATION"
-      application_url = local.start_url
-    }
-  }
-
-  tags = var.tags
-}
-
 resource "aws_ssoadmin_application_assignment_configuration" "this" {
-  application_arn     = aws_ssoadmin_application.this.arn
+  count = local.app ? 1 : 0
+
+  application_arn     = var.application_arn
   assignment_required = true
 }
 
@@ -50,17 +38,17 @@ resource "aws_ssoadmin_application_assignment_configuration" "this" {
 # -----------------------------------------------------------------------------
 
 resource "aws_ssoadmin_application_assignment" "users" {
-  for_each = toset(var.assigned_users)
+  for_each = local.app ? toset(var.assigned_users) : toset([])
 
-  application_arn = aws_ssoadmin_application.this.arn
+  application_arn = var.application_arn
   principal_id    = each.value
   principal_type  = "USER"
 }
 
 resource "aws_ssoadmin_application_assignment" "groups" {
-  for_each = toset(var.assigned_groups)
+  for_each = local.app ? toset(var.assigned_groups) : toset([])
 
-  application_arn = aws_ssoadmin_application.this.arn
+  application_arn = var.application_arn
   principal_id    = each.value
   principal_type  = "GROUP"
 }
@@ -92,17 +80,17 @@ data "aws_identitystore_group" "by_name" {
 }
 
 resource "aws_ssoadmin_application_assignment" "users_by_name" {
-  for_each = data.aws_identitystore_user.by_name
+  for_each = { for k, v in data.aws_identitystore_user.by_name : k => v if local.app }
 
-  application_arn = aws_ssoadmin_application.this.arn
+  application_arn = var.application_arn
   principal_id    = each.value.user_id
   principal_type  = "USER"
 }
 
 resource "aws_ssoadmin_application_assignment" "groups_by_name" {
-  for_each = data.aws_identitystore_group.by_name
+  for_each = { for k, v in data.aws_identitystore_group.by_name : k => v if local.app }
 
-  application_arn = aws_ssoadmin_application.this.arn
+  application_arn = var.application_arn
   principal_id    = each.value.group_id
   principal_type  = "GROUP"
 }
