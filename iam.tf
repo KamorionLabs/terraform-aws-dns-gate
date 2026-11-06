@@ -35,6 +35,7 @@ data "aws_iam_policy_document" "lambda" {
       "dynamodb:GetItem",
       "dynamodb:BatchGetItem",
       "dynamodb:Query",
+      "dynamodb:Scan",
       "dynamodb:PutItem",
       "dynamodb:UpdateItem",
       "dynamodb:DeleteItem",
